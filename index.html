@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pneumonia Detection</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        img {
+            max-width: 300px;
+            height: auto;
+        }
+        .result {
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pneumonia Detection System using GradCAM</h1>
+        
+        <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+        <button class="btn" onclick="document.getElementById('imageUpload').click()">
+            Select X-ray Image
+        </button>
+        <button class="btn" id="analyzeBtn" disabled>Analyze</button>
+
+        <div class="image-container">
+            <div>
+                <h3>Original Image</h3>
+                <img id="originalImage" alt="Original X-ray">
+            </div>
+            <div>
+                <h3>GradCAM Heatmap</h3>
+                <img id="heatmapImage" alt="Heatmap">
+            </div>
+        </div>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const originalImage = document.getElementById('originalImage');
+        const heatmapImage = document.getElementById('heatmapImage');
+        const resultDiv = document.getElementById('result');
+        let selectedFile = null;
+
+        imageUpload.addEventListener('change', function(e) {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    originalImage.src = e.target.result;
+                    analyzeBtn.disabled = false;
+                    resultDiv.innerHTML = 'Image loaded. Click Analyze to process.';
+                }
+                reader.readAsDataURL(selectedFile);
+            }
+        });
+
+        analyzeBtn.addEventListener('click', async function() {
+            if (!selectedFile) {
+                resultDiv.innerHTML = 'Please select an image first';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            try {
+                resultDiv.innerHTML = 'Processing...';
+                analyzeBtn.disabled = true;
+
+                const response = await fetch('http://localhost:5000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status} - ${await response.text()}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                    return;
+                }
+
+                heatmapImage.src = data.heatmap;
+                const probability = (data.probability * 100).toFixed(2);
+                resultDiv.innerHTML = `
+                    Prediction: ${data.prediction}<br>
+                    Confidence: ${probability}%
+                `;
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultDiv.innerHTML = `Error: ${error.message}`;
+            } finally {
+                analyzeBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

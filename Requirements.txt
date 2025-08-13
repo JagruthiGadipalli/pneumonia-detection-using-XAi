@@ -1,0 +1,11 @@
+flask
+flask_cors
+tensorflow
+numpy
+cv2
+PIL
+io
+base64
+
+model- "pneumonia_xray_model.h5"
+Unable to upload the file because of big file.
